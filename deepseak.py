@@ -241,7 +241,7 @@ def calculate_metrics_spread(results, print_values=True):
 
 
 # Обучение модели
-def train_model(model, data, dataset_name, epochs=10000, target_acc=0.8):
+def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     model.train()
     loss_f = torch.nn.CrossEntropyLoss()
@@ -260,11 +260,11 @@ def train_model(model, data, dataset_name, epochs=10000, target_acc=0.8):
             if max_acc - pred_max_acc < 1e-6 and max_acc > target_acc:
                 break
             pred_max_acc = max_acc
-            torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}.pkl")
+            torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}_{layer}.pkl")
             counter = 0
         else:
             counter += 1
-        if abs(loss - pred_loss) < 1e-7 or counter >= 300:
+        if abs(loss - pred_loss) < 1e-7 or (layer == 'SAGE' and counter >= 1000) or ((layer == 'GCN' or layer == 'GAT') and counter >= 300):
             break
         pred_loss = loss
         # if epoch % 100 == 0:
@@ -336,7 +336,7 @@ for dataset_name in datasets:
                     data = method(pred_data, sigma)
                     model = GCN(num_features, num_classes, layer_name=layer)
                     model.to(device)
-                    model, max_acc, _ = train_model(model, pred_data, dataset_name)
+                    model, max_acc, _ = train_model(model, pred_data, dataset_name, layer=layer)
                     model.load_state_dict(torch.load(f"output/best_GCN_model_{dataset_name}.pkl"))
 
                     # Оценка PU
