@@ -257,7 +257,7 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
         acc = (pred[data.val_idx] == data.y[data.val_idx]).sum() / data.val_idx.shape[0]
         if max_acc < acc:
             max_acc = acc
-            if max_acc - pred_max_acc < 1e-3 and max_acc > target_acc:
+            if max_acc - pred_max_acc < 1e-2 and max_acc > target_acc:
                 print("early stop max_acc")
                 break
             pred_max_acc = max_acc
@@ -265,7 +265,7 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
             counter = 0
         else:
             counter += 1
-        if abs(loss - pred_loss) < 1e-6:
+        if abs(loss - pred_loss) < 2e-5:
             print("early stop loss")
             break
         pred_loss = loss
