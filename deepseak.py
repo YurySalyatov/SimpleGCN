@@ -261,7 +261,7 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
                 torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}_{layer}.pkl")
             min_loss = min(min_loss, val_loss)
             max_acc = max(max_acc, val_acc)
-            if target_acc < max_acc and counter >= 100:
+            if target_acc < max_acc or counter >= 100:
                 break
         else:
             counter += 1
