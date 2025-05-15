@@ -337,7 +337,7 @@ for dataset_name in datasets:
                     model = GCN(num_features, num_classes, layer_name=layer)
                     model.to(device)
                     model, max_acc, _ = train_model(model, pred_data, dataset_name, layer=layer)
-                    model.load_state_dict(torch.load(f"output/best_GCN_model_{dataset_name}.pkl"))
+                    model.load_state_dict(torch.load(f"output/best_GCN_model_{dataset_name}_{layer}.pkl"))
 
                     # Оценка PU
                     num_samples = 20
