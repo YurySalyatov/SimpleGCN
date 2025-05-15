@@ -256,11 +256,11 @@ def train_model(model, data, dataset_name, epochs=10000, target_acc=0.8):
         acc = (pred[data.val_idx] == data.y[data.val_idx]).sum() / data.val_idx.shape[0]
         if max_acc < acc:
             max_acc = acc
-            if max_acc - pred_max_acc < 1e-6 and max_acc > target_acc:
+            if max_acc - pred_max_acc < 1e-5 and max_acc > target_acc:
                 break
             pred_max_acc = max_acc
             torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}.pkl")
-        if abs(loss - pred_loss) < 1e-7:
+        if abs(loss - pred_loss) < 1e-6:
             break
         pred_loss = loss
         # if epoch % 100 == 0:
