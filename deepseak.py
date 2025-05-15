@@ -334,12 +334,10 @@ for dataset_name in datasets:
                     # Оценка PU
                     num_samples = 20
                     predictions = []
-                    perturbed_data = data.clone()
-                    var_pred = []
                     model.train()
                     for _ in range(num_samples):
                         with torch.no_grad():
-                            log_probs = model(perturbed_data)
+                            log_probs = model(data)
                             predictions.append(torch.exp(log_probs[data.test_idx]))
 
                     predictions = torch.stack(predictions)
