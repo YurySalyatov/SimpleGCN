@@ -245,8 +245,8 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     model.train()
     loss_f = torch.nn.CrossEntropyLoss()
-    min_loss = torch.FloatTensor([1e10])
-    max_acc = torch.FloatTensor([0])
+    min_loss = 1e10
+    max_acc = 0
     counter = 0
     for epoch in range(epochs):
         optimizer.zero_grad()
