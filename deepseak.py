@@ -12,12 +12,15 @@ import csv
 import statistics
 
 from utils import universal_load_data, Data
+import warnings
 
+warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings('ignore', category=FutureWarning)
 seed = 42
 
 torch.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
-
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Загрузка данных
 # dataset = Planetoid(root='/tmp/Cora', name='Cora')
@@ -39,13 +42,17 @@ def node_noise(data, percentage):
     """
     tensor = data.x
     if percentage <= 0:
-        return data.clone()
+        res = data.clone()
+        res.to(device)
+        return res
 
     num_nodes = tensor.size(0)
     num_selected = int(percentage * num_nodes)
 
     if num_selected == 0:
-        return data.clone()
+        res = data.clone()
+        res.to(device)
+        return res
 
     # Выбираем случайные вершины
     selected_nodes = torch.randperm(num_nodes)[:num_selected]
@@ -60,6 +67,7 @@ def node_noise(data, percentage):
     noised_tensor[selected_nodes] = replacement
     noisy_data = data.clone()
     noisy_data.x = noised_tensor
+    noisy_data.to(device)
     return noisy_data
 
 
@@ -74,13 +82,17 @@ def feature_noise(data, percentage):
     """
     tensor = data.x
     if percentage <= 0:
-        return data.clone()
+        res = data.clone()
+        res.to(device)
+        return res
 
     num_features = tensor.size(1)
     num_selected_features = int(percentage * num_features)
 
     if num_selected_features == 0:
-        return data.clone()
+        res = data.clone()
+        res.to(device)
+        return res
 
     # Выбираем случайные фичи
     selected_features = torch.randperm(num_features)[:num_selected_features]
@@ -95,6 +107,7 @@ def feature_noise(data, percentage):
     noised_tensor[:, selected_features] = replacement
     noisy_data = data.clone()
     noisy_data.x = noised_tensor
+    noisy_data.to(device)
     return noisy_data
 
 
@@ -228,12 +241,13 @@ def calculate_metrics_spread(results, print_values=True):
 
 
 # Обучение модели
-def train_model(model, data, dataset_name, epochs=500):
+def train_model(model, data, dataset_name, epochs=10000, target_acc=0.8):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     model.train()
     loss_f = torch.nn.CrossEntropyLoss()
-    min_loss = 1e10
+    pred_loss = 1e10
     max_acc = 0
+    pred_max_acc = 0
     for epoch in range(epochs):
         optimizer.zero_grad()
         out = model(data)
@@ -242,15 +256,20 @@ def train_model(model, data, dataset_name, epochs=500):
         acc = (pred[data.val_idx] == data.y[data.val_idx]).sum() / data.val_idx.shape[0]
         if max_acc < acc:
             max_acc = acc
-            min_loss = loss.item()
+            if max_acc - pred_max_acc < 1e-6 and max_acc > target_acc:
+                break
+            pred_max_acc = max_acc
             torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}.pkl")
+        if abs(loss - pred_loss) < 1e-7:
+            break
+        pred_loss = loss
         # if epoch % 100 == 0:
         # print(f"loss: {loss.item():.4f}, epoch: {epoch + 1}")
         loss.backward()
         optimizer.step()
-    print(f"min loss: {min_loss:.4f}")
+    print(f"min loss: {pred_loss:.4f}")
     print(f"max_acc: {max_acc}")
-    return model
+    return model, max_acc, pred_loss
 
 
 # Вычисление энтропии
@@ -275,12 +294,12 @@ def compute_margin(log_probs):
 
 
 # Уровни шума и результаты
-noise_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+noise_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
 
 
 def get_data(dataset_str):
     adj, features, labels, _, _, _ = universal_load_data(dataset_str)
-    print(features[:20, :20])
+    # print(features[:20, :20])
     shuffled_nodes = shuffle(np.arange(adj.shape[0]), random_state=seed)
     train_mask = torch.LongTensor(shuffled_nodes[:int(0.4 * adj.shape[0])])
     val_mask = torch.LongTensor(
@@ -290,127 +309,65 @@ def get_data(dataset_str):
                 test_idx=test_mask)
     num_features = features.shape[1]
     num_classes = torch.max(labels) + 1
+    data.to(device)
     return data, num_features, num_classes
 
 
-noisy_methods = [feature_noise, node_noise]
+noisy_methods = [feature_noise]
+datasets = ['cora']
 # Experiment 1
-exp1 = True
-if exp1:
-    for dataset_name in ['cora', 'citeseer']:
-        os.makedirs(f"results/{dataset_name}", exist_ok=True)
-        pred_data, num_features, num_classes = get_data(dataset_name)
-        model = GCN(num_features, num_classes)
-        model = train_model(model, pred_data, dataset_name)
-        model.load_state_dict(torch.load(f"output/best_GCN_model_{dataset_name}.pkl"))
-        for method in noisy_methods:
-            print(method.__name__)
-            results = []
-            for sigma in noise_levels:
-                data = method(pred_data, sigma)
-                # Оценка PU
-                model.eval()
-                with torch.no_grad():
-                    log_probs = model(data)
-                    entropy = compute_entropy(log_probs)
-                    margin = compute_margin(log_probs)
-                    e_pu = entropy.mean().item()
-                    var_e_pu = get_normalize_std(entropy)
-                    m_pu = margin.mean().item()
-                    var_m_pu = get_normalize_std(margin)
-
-                # Оценка AU (100 итераций с шумом)
-                num_samples = 100
-                predictions = []
-                perturbed_data = data.clone()
-                entropy = []
-                var_pred = []
-                model.train()
-                for _ in range(num_samples):
-                    with torch.no_grad():
-                        log_probs = model(perturbed_data)
-                        predictions.append(torch.exp(log_probs))
-                        entropy.append(compute_entropy(log_probs))
-
-                model.eval()
-                for _ in range(num_samples // 10):
-                    perturbed_data = method(perturbed_data, sigma)
-                    with torch.no_grad():
-                        log_probs = model(perturbed_data)
-                        exp = torch.exp(log_probs)
-                        var_pred.append(exp)
-
-                predictions = torch.stack(predictions)
-                entropy = torch.stack(entropy)
-                mean_pred = predictions.mean(dim=0)
-                mean_pred_entropy = -torch.sum(mean_pred * torch.log(mean_pred), dim=1)
-                mean_entropy_pred = entropy.mean(dim=0)
-                d_au = mean_entropy_pred.mean().item()
-                var_pred = torch.stack(var_pred)
-                var_au_nodes_class = torch.var(var_pred, dim=0)
-                var_au_nodes = torch.sum(var_au_nodes_class, dim=1)
-                var_au = var_au_nodes.mean().item()
-                d_pu = mean_pred_entropy.mean().item()
-                mu = d_pu - d_au
-                var_d_pu = get_normalize_std(mean_pred_entropy)
-                results.append(
-                    {'sigma': sigma, 'Entropy PU': e_pu, 'Margin PU': m_pu, "Dropout PU": d_pu, 'Dropout AU': d_au,
-                     'Variance AU': var_au, "Dropout MU": mu, "CV Entropy PU": var_e_pu, "CV Margin PU": var_m_pu,
-                     "CV Dropout PU": var_d_pu})
-                print(f"Noisy {sigma}")
-                print(f"Entropy PU: {e_pu:.4f}, Margin PU: {m_pu:.4f}, Dropout PU: {d_pu:.4f}")
-                print(f"CV Entropy PU: {var_e_pu:.4f}, Margin PU: {var_m_pu:.4f}, Dropout PU: {var_d_pu:.4f}")
-                print(f"Dropout AU: {d_au:.4f}, Variance AU: {var_au:.4f}, Dropout MU: {mu:.4f}")
-
-            plot_dir = f"results/{dataset_name}/{method.__name__}/plots"
-            os.makedirs(plot_dir, exist_ok=True)
-            table_file = f"results/{dataset_name}/{method.__name__}/table_experiment1.txt"
-
-            plot_all_results(results, save_path=plot_dir)
-            save_table(results, filename=table_file)
-            calculate_metrics_spread(results, False)
-
-# Experement 2
-## 2.1
 layers = ["GCN", "GAT", "SAGE"]
-exp2 = True
-if exp2:
-    methods = [feature_noise, node_noise]
-    for dataset_name in ['cora', 'citeseer']:
-        pred_data, num_features, num_classes = get_data(dataset_name)
-        for method in methods:
-            tables_dir = f"results/{dataset_name}/{method.__name__}"
-            os.makedirs(tables_dir, exist_ok=True)
-            print(method.__name__)
-            for layer_name in layers:
-                results = []
-                for sigma in noise_levels:
+for dataset_name in datasets:
+    os.makedirs(f"results/{dataset_name}", exist_ok=True)
+    pred_data, num_features, num_classes = get_data(dataset_name)
+    for method in noisy_methods:
+        print(method.__name__)
+        results = []
+        for sigma in noise_levels:
+            one_result = {"sigma": sigma}
+            for layer in layers:
+                pu_arr = []
+                acc_arr = []
+                for _ in range(10):
                     data = method(pred_data, sigma)
-                    model = GCN(num_features, num_classes, layer_name=layer_name)
-                    model = train_model(model, data, dataset_name)
+                    model = GCN(num_features, num_classes, layer_name=layer)
+                    model.to(device)
+                    model, max_acc, _ = train_model(model, pred_data, dataset_name)
                     model.load_state_dict(torch.load(f"output/best_GCN_model_{dataset_name}.pkl"))
-                    num_samples = 100
+
+                    # Оценка PU
+                    num_samples = 20
                     predictions = []
-                    entropy = []
+                    perturbed_data = data.clone()
                     var_pred = []
                     model.train()
                     for _ in range(num_samples):
                         with torch.no_grad():
-                            log_probs = model(data)
-                            predictions.append(torch.exp(log_probs))
-                            entropy.append(compute_entropy(log_probs))
+                            log_probs = model(perturbed_data)
+                            predictions.append(torch.exp(log_probs[data.test_idx]))
 
                     predictions = torch.stack(predictions)
-                    entropy = torch.stack(entropy)
                     mean_pred = predictions.mean(dim=0)
-                    mean_pred_entropy = -torch.sum(mean_pred * torch.log(mean_pred), dim=1)
-                    mean_entropy_pred = entropy.mean(dim=0)
-                    d_au = mean_entropy_pred.mean().item()
-                    d_pu = mean_pred_entropy.mean().item()
-                    mu = d_pu - d_au
-                    results.append(
-                        {'sigma': sigma, "Dropout PU": d_pu, 'Dropout AU': d_au, "Dropout MU": mu})
-                    print(f"noisy: {sigma}, layer name: {layer_name}")
-                    print(f"Dropout PU: {d_pu:.4f}, Dropout AU: {d_au:.4f}, Dropout MU: {mu:.4f}")
-                save_table(results, tables_dir + f"/{layer_name}_experiment2.txt")
+                    mean_pred_entropy = -torch.sum(mean_pred * torch.log(mean_pred + 1e-18), dim=1)
+                    pu = mean_pred_entropy.mean()
+                    pu_arr.append(pu)
+                    acc_arr.append(max_acc)
+                pu_arr = torch.stack(pu_arr)
+                acc_arr = torch.stack(acc_arr)
+                mean_pu = pu_arr.mean().item()
+                var_pu = pu_arr.var().item()
+                one_result[f"{layer} PU"] = mean_pu
+                one_result[f"{layer} var PU"] = var_pu
+                one_result[f"{layer} max acc"] = acc_arr.max().item()
+                one_result[f"{layer} min acc"] = acc_arr.min().item()
+                one_result[f"{layer} mean acc"] = acc_arr.mean().item()
+                one_result[f"{layer} var acc"] = acc_arr.var().item()
+            print(one_result)
+            results.append(one_result)
+        plot_dir = f"results/{dataset_name}/{method.__name__}/plots"
+        os.makedirs(plot_dir, exist_ok=True)
+        table_file = f"results/{dataset_name}/{method.__name__}/table_experiment1.txt"
 
+        plot_all_results(results, save_path=plot_dir)
+        save_table(results, filename=table_file)
+        calculate_metrics_spread(results, False)

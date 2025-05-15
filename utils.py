@@ -184,3 +184,11 @@ class Data:
                     self.train_idx.detach().clone(),
                     self.val_idx.detach().clone(),
                     self.test_idx.detach().clone())
+
+    def to(self, device):
+        self.x = self.x.to(device)
+        self.edge_index = self.edge_index.to(device)
+        self.y = self.y.to(device)
+        self.train_idx = self.train_idx.to(device)
+        self.val_idx = self.val_idx.to(device)
+        self.test_idx = self.test_idx.to(device)
