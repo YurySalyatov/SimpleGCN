@@ -245,37 +245,33 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     model.train()
     loss_f = torch.nn.CrossEntropyLoss()
-    pred_loss = 1e10
-    max_acc = 0
-    pred_max_acc = 0
+    min_loss = torch.FloatTensor([1e10])
+    max_acc = torch.FloatTensor([0])
     counter = 0
     for epoch in range(epochs):
         optimizer.zero_grad()
         out = model(data)
         loss = loss_f(out[data.train_idx], data.y[data.train_idx])
         pred = out.argmax(dim=1)
-        acc = (pred[data.val_idx] == data.y[data.val_idx]).sum() / data.val_idx.shape[0]
-        if max_acc < acc:
-            max_acc = acc
-            if max_acc - pred_max_acc < 1e-2 and max_acc > target_acc:
-                print("early stop max_acc")
-                break
-            pred_max_acc = max_acc
-            torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}_{layer}.pkl")
+        val_acc = (pred[data.val_idx] == data.y[data.val_idx]).sum() / data.val_idx.shape[0]
+        val_loss = loss_f(out[data.val_idx], data.y[data.val_idx])
+        if min_loss > val_loss or max_acc < val_acc:
             counter = 0
+            if min_loss > val_loss.item() and max_acc < val_acc.item():
+                torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}_{layer}.pkl")
+            min_loss = min(min_loss, val_loss)
+            max_acc = max(max_acc, val_acc)
+            if target_acc < max_acc and counter >= 100:
+                break
         else:
             counter += 1
-        if abs(loss - pred_loss) < 2e-5:
-            print("early stop loss")
-            break
-        pred_loss = loss
         # if epoch % 100 == 0:
         # print(f"loss: {loss.item():.4f}, epoch: {epoch + 1}")
         loss.backward()
         optimizer.step()
-    print(f"min loss: {pred_loss:.4f}")
+    print(f"min loss: {min_loss:.4f}")
     print(f"max_acc: {max_acc}")
-    return model, max_acc, pred_loss
+    return model, max_acc, min_loss
 
 
 # Вычисление энтропии
