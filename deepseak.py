@@ -328,7 +328,7 @@ for dataset_name in datasets:
                     data = method(pred_data, sigma)
                     model = GCN(num_features, num_classes, layer_name=layer)
                     model.to(device)
-                    model, max_acc, _ = train_model(model, pred_data, dataset_name, layer=layer)
+                    model, max_acc, _ = train_model(model, data, dataset_name, layer=layer)
                     model.load_state_dict(torch.load(f"output/best_GCN_model_{dataset_name}_{layer}.pkl"))
 
                     # Оценка PU
