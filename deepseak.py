@@ -248,6 +248,7 @@ def train_model(model, data, dataset_name, epochs=10000, target_acc=0.8):
     pred_loss = 1e10
     max_acc = 0
     pred_max_acc = 0
+    counter = 0
     for epoch in range(epochs):
         optimizer.zero_grad()
         out = model(data)
@@ -260,7 +261,10 @@ def train_model(model, data, dataset_name, epochs=10000, target_acc=0.8):
                 break
             pred_max_acc = max_acc
             torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}.pkl")
-        if abs(loss - pred_loss) < 1e-7:
+            counter = 0
+        else:
+            counter += 1
+        if abs(loss - pred_loss) < 1e-7 or counter >= 100:
             break
         pred_loss = loss
         # if epoch % 100 == 0:
