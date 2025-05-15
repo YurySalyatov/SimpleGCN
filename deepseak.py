@@ -264,7 +264,7 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
             counter = 0
         else:
             counter += 1
-        if abs(loss - pred_loss) < 1e-7 or (layer == 'SAGE' and counter >= 1000) or ((layer == 'GCN' or layer == 'GAT') and counter >= 300):
+        if abs(loss - pred_loss) < 1e-7:
             break
         pred_loss = loss
         # if epoch % 100 == 0:
