@@ -253,12 +253,10 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
         loss = loss_f(out[data.train_idx], data.y[data.train_idx])
         pred = out.argmax(dim=1)
         val_acc = (pred[data.val_idx] == data.y[data.val_idx]).sum() / data.val_idx.shape[0]
-        val_loss = loss_f(out[data.val_idx], data.y[data.val_idx])
-        if min_loss > val_loss or max_acc < val_acc:
-            if min_loss > val_loss.item() and max_acc < val_acc.item():
-                torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}_{layer}.pkl")
-            min_loss = min(min_loss, val_loss)
-            max_acc = max(max_acc, val_acc)
+        if max_acc < val_acc:
+            torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}_{layer}.pkl")
+            min_loss = min(min_loss, loss)
+            max_acc = val_acc
             if target_acc <= max_acc:
                 break
         # if epoch % 100 == 0:
