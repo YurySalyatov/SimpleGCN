@@ -40,19 +40,17 @@ def node_noise(data, percentage):
     Returns:
         тензор с шумом
     """
-    tensor = data.x
+    noisy_data = data.clone()
+    noisy_data.to(device)
+    tensor = noisy_data.x
     if percentage <= 0:
-        res = data.clone()
-        res.to(device)
-        return res
+        return noisy_data
 
     num_nodes = tensor.size(0)
     num_selected = int(percentage * num_nodes)
 
     if num_selected == 0:
-        res = data.clone()
-        res.to(device)
-        return res
+        return noisy_data
 
     # Выбираем случайные вершины
     selected_nodes = torch.randperm(num_nodes)[:num_selected]
@@ -65,9 +63,7 @@ def node_noise(data, percentage):
     # Создаем копию и применяем шум
     noised_tensor = tensor.clone()
     noised_tensor[selected_nodes] = replacement
-    noisy_data = data.clone()
     noisy_data.x = noised_tensor
-    noisy_data.to(device)
     return noisy_data
 
 
@@ -80,19 +76,17 @@ def feature_noise(data, percentage):
     Returns:
         тензор с шумом
     """
-    tensor = data.x
+    noisy_data = data.clone()
+    noisy_data.to(device)
+    tensor = noisy_data.x
     if percentage <= 0:
-        res = data.clone()
-        res.to(device)
-        return res
+       return noisy_data
 
     num_features = tensor.size(1)
     num_selected_features = int(percentage * num_features)
 
     if num_selected_features == 0:
-        res = data.clone()
-        res.to(device)
-        return res
+        return noisy_data
 
     # Выбираем случайные фичи
     selected_features = torch.randperm(num_features)[:num_selected_features]
@@ -105,9 +99,7 @@ def feature_noise(data, percentage):
     # Создаем копию и применяем шум
     noised_tensor = tensor.clone()
     noised_tensor[:, selected_features] = replacement
-    noisy_data = data.clone()
     noisy_data.x = noised_tensor
-    noisy_data.to(device)
     return noisy_data
 
 
