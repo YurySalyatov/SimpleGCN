@@ -247,7 +247,6 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
     loss_f = torch.nn.CrossEntropyLoss()
     min_loss = 1e10
     max_acc = 0
-    counter = 0
     for epoch in range(epochs):
         optimizer.zero_grad()
         out = model(data)
@@ -256,15 +255,12 @@ def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
         val_acc = (pred[data.val_idx] == data.y[data.val_idx]).sum() / data.val_idx.shape[0]
         val_loss = loss_f(out[data.val_idx], data.y[data.val_idx])
         if min_loss > val_loss or max_acc < val_acc:
-            counter = 0
             if min_loss > val_loss.item() and max_acc < val_acc.item():
                 torch.save(model.state_dict(), f"output/best_GCN_model_{dataset_name}_{layer}.pkl")
             min_loss = min(min_loss, val_loss)
             max_acc = max(max_acc, val_acc)
-            if target_acc < max_acc or counter >= 100:
+            if target_acc <= max_acc:
                 break
-        else:
-            counter += 1
         # if epoch % 100 == 0:
         # print(f"loss: {loss.item():.4f}, epoch: {epoch + 1}")
         loss.backward()
