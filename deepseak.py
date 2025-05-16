@@ -321,6 +321,7 @@ for dataset_name in datasets:
         for sigma in noise_levels:
             one_result = {"sigma": sigma}
             for layer in layers:
+                print(layer)
                 pu_arr = []
                 acc_arr = []
                 for _ in range(10):
