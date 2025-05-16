@@ -22,6 +22,7 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed_all(seed)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 # Загрузка данных
 # dataset = Planetoid(root='/tmp/Cora', name='Cora')
 # data = dataset[0]
@@ -53,11 +54,11 @@ def node_noise(data, percentage):
         return noisy_data
 
     # Выбираем случайные вершины
-    selected_nodes = torch.randperm(num_nodes)[:num_selected]
+    selected_nodes = torch.randperm(num_nodes, device=device)[:num_selected]
 
     # Генерируем значения для замены из общего распределения
     flattened = tensor.flatten()
-    shuffled_values = flattened[torch.randperm(len(flattened))][:num_selected * tensor.size(1)]
+    shuffled_values = flattened[torch.randperm(len(flattened), device=device)][:num_selected * tensor.size(1)]
     replacement = shuffled_values.view(num_selected, tensor.size(1))
 
     # Создаем копию и применяем шум
@@ -80,7 +81,7 @@ def feature_noise(data, percentage):
     noisy_data.to(device)
     tensor = noisy_data.x
     if percentage <= 0:
-       return noisy_data
+        return noisy_data
 
     num_features = tensor.size(1)
     num_selected_features = int(percentage * num_features)
@@ -89,11 +90,11 @@ def feature_noise(data, percentage):
         return noisy_data
 
     # Выбираем случайные фичи
-    selected_features = torch.randperm(num_features)[:num_selected_features]
+    selected_features = torch.randperm(num_features, device=device)[:num_selected_features]
 
     # Генерируем значения для замены
     flattened = tensor.flatten()
-    shuffled_values = flattened[torch.randperm(len(flattened))][:tensor.size(0) * num_selected_features]
+    shuffled_values = flattened[torch.randperm(len(flattened), device=device)][:tensor.size(0) * num_selected_features]
     replacement = shuffled_values.view(tensor.size(0), num_selected_features)
 
     # Создаем копию и применяем шум
@@ -107,6 +108,9 @@ def feature_noise(data, percentage):
 class GCN(torch.nn.Module):
     def __init__(self, num_features, num_classes, hidden_dim=16, dropout=0.5, layer_name="GCN", heads=4):
         super().__init__()
+        self.layer_name = layer_name
+        self.dropout = dropout
+
         if layer_name == "GCN":
             self.conv1 = GCNConv(num_features, hidden_dim)
             self.conv2 = GCNConv(hidden_dim, num_classes)
@@ -118,12 +122,15 @@ class GCN(torch.nn.Module):
             self.conv2 = SAGEConv(hidden_dim, num_classes)
         else:
             raise Exception(f"Unknown layer name: {layer_name}, expected on of GCN, GAT, SAGE")
-        self.dropout = dropout
 
     def forward(self, data):
         x, edge_index = data.x, data.edge_index
+        x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.conv1(x, edge_index)
-        x = F.relu(x)
+        if self.layer_name == "GAT":
+            x = F.elu(x)
+        else:
+            x = F.relu(x)
         x = F.dropout(x, training=self.training, p=self.dropout)
         x = self.conv2(x, edge_index)
 
