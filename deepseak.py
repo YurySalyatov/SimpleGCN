@@ -315,6 +315,7 @@ layers = ["GCN", "GAT", "SAGE"]
 for dataset_name in datasets:
     os.makedirs(f"results/{dataset_name}", exist_ok=True)
     pred_data, num_features, num_classes = get_data(dataset_name)
+    print(dataset_name)
     for method in noisy_methods:
         print(method.__name__)
         results = []
