@@ -289,7 +289,7 @@ def compute_margin(log_probs):
 
 
 # Уровни шума и результаты
-noise_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+noise_levels = [1]
 
 
 def get_data(dataset_str):
@@ -309,7 +309,7 @@ def get_data(dataset_str):
 
 
 noisy_methods = [feature_noise]
-datasets = ['citeseer']
+datasets = ['cora', 'citeseer']
 # Experiment 1
 layers = ["GCN", "GAT", "SAGE"]
 for dataset_name in datasets:
