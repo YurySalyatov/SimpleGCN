@@ -309,7 +309,7 @@ def get_data(dataset_str):
 
 
 noisy_methods = [feature_noise]
-datasets = ['cora']
+datasets = ['citeseer']
 # Experiment 1
 layers = ["GCN", "GAT", "SAGE"]
 for dataset_name in datasets:
@@ -324,7 +324,7 @@ for dataset_name in datasets:
                 print(layer)
                 pu_arr = []
                 acc_arr = []
-                for _ in range(10):
+                for _ in range(5):
                     data = method(pred_data, sigma)
                     model = GCN(num_features, num_classes, layer_name=layer)
                     model.to(device)
@@ -358,10 +358,10 @@ for dataset_name in datasets:
                 one_result[f"{layer} var acc"] = acc_arr.var().item()
             print(one_result)
             results.append(one_result)
-        plot_dir = f"results/{dataset_name}/{method.__name__}/plots"
-        os.makedirs(plot_dir, exist_ok=True)
-        table_file = f"results/{dataset_name}/{method.__name__}/table_experiment1.txt"
+        # plot_dir = f"results/{dataset_name}/{method.__name__}/plots"
+        # os.makedirs(plot_dir, exist_ok=True)
+        table_file = f"results/{dataset_name}/{method.__name__}/table_experiment2.txt"
+        os.makedirs(f"results/{dataset_name}/{method.__name__}", exist_ok=True)
 
-        plot_all_results(results, save_path=plot_dir)
+        # plot_all_results(results, save_path=plot_dir)
         save_table(results, filename=table_file)
-        calculate_metrics_spread(results, False)
