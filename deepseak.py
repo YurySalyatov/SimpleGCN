@@ -236,7 +236,7 @@ def calculate_metrics_spread(results, print_values=True):
 
 
 # Обучение модели
-def train_model(model, data, dataset_name, layer, epochs=1000, target_acc=0.8):
+def train_model(model, data, dataset_name, layer, epochs=4000, target_acc=0.8):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     model.train()
     loss_f = torch.nn.CrossEntropyLoss()
