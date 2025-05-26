@@ -94,7 +94,8 @@ def feature_noise(data, percentage):
     noised_tensor = tensor.clone()
     # print("noisy tensor")
     # print(noised_tensor[:, selected_features])
-    noised_tensor[:, selected_features] = replacement
+    # noised_tensor[:, selected_features] = replacement
+    noised_tensor[:, selected_features] = torch.rand_like(noised_tensor[:, selected_features])
     # print(noised_tensor[:, selected_features])
     noisy_data.x = noised_tensor
     return noisy_data
