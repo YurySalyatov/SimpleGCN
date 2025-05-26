@@ -69,14 +69,6 @@ def node_noise(data, percentage):
 
 
 def feature_noise(data, percentage):
-    """
-    Заменяет случайный процент фичей для всех вершин на значения из общего распределения тензора
-    Args:
-        tensor: исходный тензор (num_nodes, num_features)
-        percentage: процент фичей для замены (0.0 - 1.0)
-    Returns:
-        тензор с шумом
-    """
     noisy_data = data.clone()
     noisy_data.to(device)
     tensor = noisy_data.x
@@ -84,14 +76,15 @@ def feature_noise(data, percentage):
         return noisy_data
 
     num_features = tensor.size(1)
+    # print("num_features", num_features)
     num_selected_features = int(percentage * num_features)
-
+    # print("num_selected_features", num_selected_features)
     if num_selected_features == 0:
         return noisy_data
 
     # Выбираем случайные фичи
     selected_features = torch.randperm(num_features, device=device)[:num_selected_features]
-
+    # print("selected_features", selected_features)
     # Генерируем значения для замены
     flattened = tensor.flatten()
     shuffled_values = flattened[torch.randperm(len(flattened), device=device)][:tensor.size(0) * num_selected_features]
@@ -99,7 +92,10 @@ def feature_noise(data, percentage):
 
     # Создаем копию и применяем шум
     noised_tensor = tensor.clone()
+    # print("noisy tensor")
+    # print(noised_tensor[:, selected_features])
     noised_tensor[:, selected_features] = replacement
+    # print(noised_tensor[:, selected_features])
     noisy_data.x = noised_tensor
     return noisy_data
 
@@ -240,7 +236,7 @@ def calculate_metrics_spread(results, print_values=True):
 
 
 # Обучение модели
-def train_model(model, data, dataset_name, layer, epochs=10000, target_acc=0.8):
+def train_model(model, data, dataset_name, layer, epochs=1000, target_acc=0.8):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     model.train()
     loss_f = torch.nn.CrossEntropyLoss()
@@ -289,7 +285,7 @@ def compute_margin(log_probs):
 
 
 # Уровни шума и результаты
-noise_levels = [1]
+noise_levels = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 
 def get_data(dataset_str):
@@ -328,8 +324,10 @@ for dataset_name in datasets:
                 for _ in range(5):
                     data = method(pred_data, sigma)
                     model = GCN(num_features, num_classes, layer_name=layer)
+                    # print(model)
                     model.to(device)
-                    model, max_acc, _ = train_model(model, data, dataset_name, layer=layer)
+                    model, max_acc, _ = train_model(model, data, dataset_name, layer=layer,
+                                                    target_acc=0.5 + 0.25 * (1 - sigma))
                     model.load_state_dict(torch.load(f"output/best_GCN_model_{dataset_name}_{layer}.pkl"))
 
                     # Оценка PU
@@ -365,4 +363,4 @@ for dataset_name in datasets:
         os.makedirs(f"results/{dataset_name}/{method.__name__}", exist_ok=True)
 
         # plot_all_results(results, save_path=plot_dir)
-        save_table(results, filename=table_file)
+        # save_table(results, filename=table_file)
