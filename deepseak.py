@@ -114,8 +114,8 @@ class GCN(torch.nn.Module):
             self.conv1 = GATConv(num_features, hidden_dim, heads=heads)
             self.conv2 = GATConv(hidden_dim * heads, num_classes)
         elif layer_name == "SAGE":
-            self.conv1 = SAGEConv(num_features, hidden_dim)
-            self.conv2 = SAGEConv(hidden_dim, num_classes)
+            self.conv1 = SAGEConv(num_features, hidden_dim, normalize=True)
+            self.conv2 = SAGEConv(hidden_dim, num_classes, normalize=True)
         else:
             raise Exception(f"Unknown layer name: {layer_name}, expected on of GCN, GAT, SAGE")
 
