@@ -363,4 +363,4 @@ for dataset_name in datasets:
         os.makedirs(f"results/{dataset_name}/{method.__name__}", exist_ok=True)
 
         # plot_all_results(results, save_path=plot_dir)
-        # save_table(results, filename=table_file)
+        save_table(results, filename=table_file)
