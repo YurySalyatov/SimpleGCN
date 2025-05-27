@@ -94,8 +94,8 @@ def feature_noise(data, percentage):
     noised_tensor = tensor.clone()
     # print("noisy tensor")
     # print(noised_tensor[:, selected_features])
-    # noised_tensor[:, selected_features] = replacement
-    noised_tensor[:, selected_features] = torch.rand_like(noised_tensor[:, selected_features])
+    noised_tensor[:, selected_features] = replacement
+    # noised_tensor[:, selected_features] = torch.rand_like(noised_tensor[:, selected_features])
     # print(noised_tensor[:, selected_features])
     noisy_data.x = noised_tensor
     return noisy_data
@@ -237,7 +237,7 @@ def calculate_metrics_spread(results, print_values=True):
 
 
 # Обучение модели
-def train_model(model, data, dataset_name, layer, epochs=4000, target_acc=0.8):
+def train_model(model, data, dataset_name, layer, epochs=300, target_acc=0.6):
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
     model.train()
     loss_f = torch.nn.CrossEntropyLoss()
@@ -286,7 +286,7 @@ def compute_margin(log_probs):
 
 
 # Уровни шума и результаты
-noise_levels = [1]
+noise_levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6]
 
 
 def get_data(dataset_str):
@@ -327,8 +327,7 @@ for dataset_name in datasets:
                     model = GCN(num_features, num_classes, layer_name=layer)
                     # print(model)
                     model.to(device)
-                    model, max_acc, _ = train_model(model, data, dataset_name, layer=layer,
-                                                    target_acc=0.5 + 0.25 * (1 - sigma))
+                    model, max_acc, _ = train_model(model, data, dataset_name, layer=layer)
                     model.load_state_dict(torch.load(f"output/best_GCN_model_{dataset_name}_{layer}.pkl"))
 
                     # Оценка PU
